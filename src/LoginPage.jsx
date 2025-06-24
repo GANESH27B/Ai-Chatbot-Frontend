@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { FiPlus, FiSearch, FiBook, FiPlayCircle, FiSettings, FiAlertCircle } from "react-icons/fi";
+import { FiAlertCircle } from "react-icons/fi";
 import io from "socket.io-client";
 import queryString from "query-string";
 import "./LoginPage.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-const LoginPage = ({ onLogin, socket }) => {
+const LoginPage = ({ onLogin }) => {
+  const [socket] = useState(() => io(API_URL, { withCredentials: true }));
   const [mode, setMode] = useState("login");
   const [formData, setFormData] = useState({ username: "", password: "", email: "", code: "", newPassword: "" });
   const [errors, setErrors] = useState([]);
@@ -15,24 +16,20 @@ const LoginPage = ({ onLogin, socket }) => {
   useEffect(() => {
     const { token, userId } = queryString.parse(window.location.search);
     if (token && userId && typeof token === "string" && token.trim()) {
-      console.log("Received token from URL:", token);
       localStorage.setItem("token", token);
       onLogin();
       window.history.replaceState({}, document.title, "/");
     } else if (token || userId) {
-      console.error("Invalid token or userId in URL query");
       setErrors(["Invalid token received. Please try logging in again."]);
     }
 
     socket.on("userSignedIn", ({ userId, username }) => {
-      console.log("Socket event: userSignedIn", { userId, username });
       if (formData.username === username && mode === "login") {
         const storedToken = localStorage.getItem("token");
         if (storedToken && typeof storedToken === "string" && storedToken.trim()) {
           setIsLoading(false);
           onLogin();
         } else {
-          console.error("No valid token found for socket login");
           setErrors(["Invalid or missing token. Please try again."]);
           setIsLoading(false);
         }
@@ -67,7 +64,7 @@ const LoginPage = ({ onLogin, socket }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value.trim() }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const resetForm = () => {
@@ -80,6 +77,7 @@ const LoginPage = ({ onLogin, socket }) => {
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
+      setIsLoading(false);
       return;
     }
 
@@ -105,31 +103,24 @@ const LoginPage = ({ onLogin, socket }) => {
     }
 
     try {
-      console.log(`Sending request to ${endpoint} with body:`, body);
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned an unexpected response. Ensure the backend server is running at " + API_URL);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Request failed");
       }
 
       const data = await response.json();
-      console.log("API response:", data);
-
-      if (!response.ok) {
-        throw new Error(data.error || "Request failed");
-      }
 
       if (mode === "login") {
         if (!data.token || typeof data.token !== "string" || !data.token.trim()) {
           throw new Error("Invalid or missing token in login response");
         }
         localStorage.setItem("token", data.token);
-        console.log("Stored token:", data.token);
         resetForm();
         setIsLoading(false);
         onLogin();
@@ -153,14 +144,12 @@ const LoginPage = ({ onLogin, socket }) => {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error("Error during submission:", error.message);
       setErrors([error.message || "An unexpected error occurred. Please try again."]);
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = () => {
-    console.log("Initiating Google Sign-In");
     window.location.href = `${API_URL}/api/auth/google`;
   };
 

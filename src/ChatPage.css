@@ -223,7 +223,6 @@
 
 .message.user {
   align-items: flex-end;
- 
 }
 
 .message.bot {
@@ -242,7 +241,6 @@
 
 .message.user .message-content {
   background-color: transparent;
- 
   color: white;
 }
 

@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { FiPlus, FiArrowDown, FiPaperclip, FiMic, FiAlertCircle } from "react-icons/fi";
 import "./ChatPage.css";
 
-
-
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -16,7 +14,6 @@ const Sidebar = ({ isDark, onNewChat, onSearch, onLogout, onSessionSelect }) => 
       setIsLoading(true);
       const token = localStorage.getItem("token");
       if (!token) {
-        console.error("No token found");
         setIsLoading(false);
         return;
       }
@@ -24,18 +21,13 @@ const Sidebar = ({ isDark, onNewChat, onSearch, onLogout, onSessionSelect }) => 
         const response = await fetch(`${API_URL}/api/chat/history`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned an unexpected response.");
+        if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+          throw new Error("Failed to fetch chats");
         }
         const data = await response.json();
-        if (response.ok) {
-          setChats(data);
-        } else {
-          throw new Error(data.error || "Failed to fetch chats");
-        }
+        setChats(data);
       } catch (error) {
-        console.error("Error fetching chats:", error.message);
+        setChats([]);
       } finally {
         setIsLoading(false);
       }
@@ -103,15 +95,8 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
   const messagesEndRef = useRef(null);
   const chatMessagesRef = useRef(null);
 
-  // Function to check if a message contains code
-  const isCodeMessage = (content) => {
-    return content && content.trim().startsWith("```") && content.trim().endsWith("```");
-  };
-
-  // Extract code content from message
-  const extractCode = (content) => {
-    return content.replace(/^```[\w]*\n([\s\S]*?)\n```$/, "$1").trim();
-  };
+  const isCodeMessage = (content) => content?.trim().startsWith("```") && content.trim().endsWith("```");
+  const extractCode = (content) => content.replace(/^```[\w]*\n([\s\S]*?)\n```$/, "$1").trim();
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -122,39 +107,25 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
         return;
       }
       try {
-        const url = `${API_URL}/api/chat/history?sessionId=${sessionId}`;
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await fetch(`${API_URL}/api/chat/history?sessionId=${sessionId}`, {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         });
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned Quay returned an unexpected response.");
+        if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+          throw new Error("Failed to fetch chat history");
         }
         const data = await response.json();
-        if (response.ok) {
-          setMessages(
-            data
-              .flatMap((session) => session.messages)
-              .filter((msg) => msg && (msg.content || msg.file))
-              .map((msg) => ({
-                role: msg.source === "user" ? "user" : "bot",
-                content: msg.content,
-                file: msg.file ? { url: msg.file.url, name: msg.file.name } : null,
-              }))
-          );
-        } else {
-          throw new Error(data.error || "Failed to fetch chat history");
-        }
+        setMessages(
+          data
+            .flatMap((session) => session.messages)
+            .filter((msg) => msg && (msg.content || msg.file))
+            .map((msg) => ({
+              role: msg.source === "user" ? "user" : "bot",
+              content: msg.content,
+              file: msg.file ? { url: msg.file.url, name: msg.file.name } : null,
+            }))
+        );
       } catch (error) {
-        console.error("Error fetching history:", error.message);
-        setMessages((prev) => [
-          ...prev,
-          { role: "bot", content: `Error: ${error.message}` },
-        ]);
+        setMessages((prev) => [...prev, { role: "bot", content: `Error: ${error.message}` }]);
       } finally {
         setIsLoading(false);
       }
@@ -165,8 +136,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
       setMessages([
         {
           role: "bot",
-          content:
-            "Welcome to Chat AI! I'm here to assist you. Feel free to ask questions, upload files, or use voice input to get started.",
+          content: "Welcome to Chat AI! I'm here to assist you. Feel free to ask questions, upload files, or use voice input to get started.",
         },
       ]);
     }
@@ -208,11 +178,9 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
     const handleScroll = () => {
       if (chatMessagesRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = chatMessagesRef.current;
-        const isAtBottom = scrollHeight - scrollTop <= clientHeight + 50;
-        setShowScrollButton(!isAtBottom);
+        setShowScrollButton(scrollHeight - scrollTop > clientHeight + 50);
       }
     };
-
     const chatMessages = chatMessagesRef.current;
     chatMessages?.addEventListener("scroll", handleScroll);
     return () => chatMessages?.removeEventListener("scroll", handleScroll);
@@ -226,18 +194,12 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
     const token = localStorage.getItem("token");
     if (!token) {
       setShowErrorButton(true);
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: "Error: Please log in to send messages." },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: "Error: Please log in to send messages." }]);
       return;
     }
     if (!messageContent && !fileData) {
       setShowErrorButton(true);
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: "Error: Message or file is required" },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: "Error: Message or file is required" }]);
       return;
     }
     const userMessage = {
@@ -253,37 +215,24 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
     try {
       const response = await fetch(`${API_URL}/api/chat/messages`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: messageContent || "",
-          sessionId,
-          file: fileData ? { url: fileData.url, name: fileData.name } : null,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: messageContent || "", sessionId, file: fileData }),
       });
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned an unexpected response.");
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Failed to send message");
       }
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-      const aiMessage = {
-        role: "bot",
-        content: data.aiMessage?.content || "No response from AI",
-        file: data.aiMessage?.file ? { url: data.aiMessage.file.url, name: data.aiMessage.file.name } : null,
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("Error sending message:", error.message);
-      setShowErrorButton(true);
       setMessages((prev) => [
         ...prev,
-        { role: "bot", content: `Error: ${error.message}` },
+        {
+          role: "bot",
+          content: data.aiMessage?.content || "No response from AI",
+          file: data.aiMessage?.file ? { url: data.aiMessage.file.url, name: data.aiMessage.file.name } : null,
+        },
       ]);
+    } catch (error) {
+      setShowErrorButton(true);
+      setMessages((prev) => [...prev, { role: "bot", content: `Error: ${error.message}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -293,10 +242,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: "Error: File size exceeds 10MB limit." },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: "Error: File size exceeds 10MB limit." }]);
       return;
     }
     setIsLoading(true);
@@ -309,20 +255,14 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned an unexpected response.");
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("File upload failed");
       }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "File upload failed");
       setSelectedFile(null);
       await sendMessage(null, { url: data.fileUrl, name: file.name });
     } catch (error) {
-      console.error("Error uploading file:", error.message);
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: `Error uploading file: ${error.message}` },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: `Error uploading file: ${error.message}` }]);
     } finally {
       setIsLoading(false);
       e.target.value = null;
@@ -331,10 +271,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
 
   const handleMicClick = () => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: "Speech recognition not supported in this browser." },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: "Speech recognition not supported in this browser." }]);
       return;
     }
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -356,10 +293,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
 
     recognition.onerror = (event) => {
       setIsRecording(false);
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: `Speech recognition error: ${event.error}` },
-      ]);
+      setMessages((prev) => [...prev, { role: "bot", content: `Speech recognition error: ${event.error}` }]);
     };
 
     recognition.onend = () => {
@@ -391,10 +325,20 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
   return (
     <div className={`chat-area ${isDark ? "dark" : "light"}`}>
       <div className="chat-header">
-        <h2><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-robot" viewBox="0 0 16 16">
-  <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135"/>
-  <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5"/>
-</svg>    WELCOME AI CHATBOT</h2>
+        <h2>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            className="bi bi-robot"
+            viewBox="0 0 16 16"
+          >
+            <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135" />
+            <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5" />
+          </svg>{" "}
+          WELCOME AI CHATBOT
+        </h2>
         <button onClick={toggleBackground} aria-label="Toggle theme">
           {isDark ? "Light" : "Dark"}
         </button>
@@ -402,10 +346,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
       <div className="chat-messages" ref={chatMessagesRef}>
         {messages.map((msg, index) =>
           msg && (msg.content || msg.file) ? (
-            <div
-              key={index}
-              className={`message ${msg.role === "user" ? "user" : "bot"}`}
-            >
+            <div key={index} className={`message ${msg.role}`}>
               <div className="message-content">
                 {msg.content && isCodeMessage(msg.content) ? (
                   <pre className="code-block">
@@ -415,12 +356,7 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
                   msg.content && <span>{msg.content}</span>
                 )}
                 {msg.file && (
-                  <a
-                    href={msg.file.url}
-                    download={msg.file.name}
-                    className="file-link"
-                    aria-label={`Download file: ${msg.file.name}`}
-                  >
+                  <a href={msg.file.url} download={msg.file.name} className="file-link">
                     <FiPaperclip className="file-icon" /> {msg.file.name}
                   </a>
                 )}
@@ -431,23 +367,34 @@ const ChatArea = ({ isDark, toggleBackground, sessionId, setSessionId, socket })
         {isLoading && (
           <div className="message bot">
             <div className="message-content typing">
-              <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-robot" viewBox="0 0 16 16">
-  <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135"/>
-  <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5"/>
-</svg> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-three-dots" viewBox="0 0 16 16">
-  <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3"/>
-</svg></span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                className="bi bi-robot"
+                viewBox="0 0 16 16"
+              >
+                <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135" />
+                <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5" />
+              </svg>{" "}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                className="bi bi-three-dots"
+                viewBox="0 0 16 16"
+              >
+                <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3" />
+              </svg>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
       {showScrollButton && (
-        <button
-          className="scroll-to-bottom"
-          onClick={scrollToBottom}
-          aria-label="Scroll to bottom"
-        >
+        <button className="scroll-to-bottom" onClick={scrollToBottom} aria-label="Scroll to bottom">
           <FiArrowDown className="icon" />
         </button>
       )}
@@ -519,23 +466,15 @@ const ChatPage = ({ isDark, onNewChat, onSearch, toggleBackground, onLogout, ses
     try {
       const response = await fetch(`${API_URL}/api/chat/new`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned an unexpected response.");
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Failed to start new chat");
       }
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to start new chat");
-      }
       setSessionId(data.sessionId);
       setIsSidebarOpen(false);
     } catch (error) {
-      console.error("Error starting new chat:", error.message);
       alert(`Error: ${error.message}`);
     }
   };
