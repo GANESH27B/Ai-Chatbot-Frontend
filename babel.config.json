@@ -1,6 +1,14 @@
+<<<<<<< HEAD
 {
   "presets": [
     "@babel/preset-env",
     ["@babel/preset-react", { "runtime": "automatic" }]
   ]
+=======
+{
+  "presets": [
+    "@babel/preset-env",
+    ["@babel/preset-react", { "runtime": "automatic" }]
+  ]
+>>>>>>> b8501599f4a5de53059382d07f466b35fbd93106
 }

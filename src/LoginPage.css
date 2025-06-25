@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 :root {
   --primary-color: #007bff;
   --secondary-color: #6c757d;
@@ -211,4 +212,219 @@ body {
   .submit-btn, .google-btn {
     font-size: 0.9rem;
   }
+=======
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --background-light: #f0f2f5;
+  --background-dark: #1e2a44;
+  --text-light: #212529;
+  --text-dark: #e0e0e0;
+  --card-light: #ffffff;
+  --card-dark: #2c3e50;
+  --border-light: #dee2e6;
+  --border-dark: #4a5e7a;
+  --error-color: #dc3545;
+  --google-color: #db4437;
+}
+
+.app.light {
+  --background: var(--background-light);
+  --text: var(--text-light);
+  --card: var(--card-light);
+  --border: var(--border-light);
+}
+
+.app.dark {
+  --background: var(--background-dark);
+  --text: var(--text-dark);
+  --card: var(--card-dark);
+  --border: var(--border-dark);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.login-container {
+  background: var(--card);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.login-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text);
+  text-align: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab.active {
+  background: var(--primary-color);
+  color: white;
+  border-radius: 4px 4px 0 0;
+}
+
+.tab:hover:not(.active) {
+  background: var(--border);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  color: var(--text);
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: var(--card);
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.form-group input:disabled {
+  background: var(--border);
+  cursor: not-allowed;
+}
+
+.error-list {
+  list-style: none;
+  padding: 0.5rem;
+  background: rgba(220, 53, 69, 0.1);
+  border-radius: 4px;
+  color: var(--error-color);
+  font-size: 0.85rem;
+}
+
+.error-list li.success {
+  color: var(--primary-color);
+}
+
+.submit-btn {
+  padding: 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.submit-btn:disabled {
+  background: var(--secondary-color);
+  cursor: not-allowed;
+}
+
+.google-btn {
+  padding: 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--google-color);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+}
+
+.google-btn:hover:not(:disabled) {
+  background: #c1352b;
+}
+
+.google-btn:disabled {
+  background: var(--secondary-color);
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .login-container {
+    padding: 1.5rem;
+    max-width: 90%;
+  }
+
+  .tab {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  .form-group input {
+    font-size: 0.9rem;
+  }
+
+  .submit-btn, .google-btn {
+    font-size: 0.9rem;
+  }
+>>>>>>> b8501599f4a5de53059382d07f466b35fbd93106
 }
